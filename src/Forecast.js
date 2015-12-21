@@ -35,7 +35,7 @@ Forecast.prototype.findWindows = function(tolerance, minLength) {
 	}
 };
 
-function getForecast(coords, callback) {
+Forecast.get = function(coords, callback) {
 	if( !("latitude" in coords && "longitude" in coords))
 		throw new TypeError("These coords don't look like coordinates to me!");
 
@@ -52,4 +52,4 @@ function getForecast(coords, callback) {
 		callback(new Forecast(response.minutely.data));
 	});
 	request.send();
-}
+};

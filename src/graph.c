@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "graph.h"
+#include "colors.h"
 	
 Graph* graph_create(GRect frame) {
 	Layer *layer = layer_create_with_data(frame, sizeof(Graph));
@@ -14,7 +15,6 @@ Graph* graph_create(GRect frame) {
 }
 
 void graph_destroy(Graph* g) {
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "Freeing graph");
 	free(g->layer);
 }
 
@@ -39,11 +39,10 @@ void graph_draw_layer(Layer *layer, GContext *ctx) {
 	
 	GPath *gpath = gpath_create(&pathInfo);
 	
-	gpath_draw_outline(ctx, gpath);
+	graphics_context_set_fill_color(ctx, GRAPH_FG);
+	gpath_draw_filled(ctx, gpath);
 	
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "Freeing pathinfo points");
 	free(pathInfo.points);
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "Freeing path");
 	gpath_destroy(gpath);
 }
 

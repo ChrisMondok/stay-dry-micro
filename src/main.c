@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "graph.h"
 #include "weather_window.h"
+#include "colors.h"
 	
 #define NUM_WINDOWS 8
 	
@@ -8,37 +9,55 @@
 #define KEY_MINUTELY 8
 
 Graph *graph;
+TextLayer *loading_layer;
+Window* root_window;
 struct weather_window windows[NUM_WINDOWS];
 
 void window_loaded(Window* window) {
-	Layer *window_layer = window_get_root_layer(window);
+	Layer *window_layer = window_get_root_layer(root_window);
 	graph = graph_create(layer_get_frame(window_layer));
 	
+	loading_layer = text_layer_create(layer_get_frame(window_layer));
+	text_layer_set_text(loading_layer, "Hang tight...");
+	text_layer_set_background_color(loading_layer, LOADING_BG);
+	text_layer_set_text_color(loading_layer, LOADING_FG);
+	text_layer_set_font(loading_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+	
 	layer_add_child(window_layer, graph_get_layer(graph));
+	layer_add_child(window_layer, text_layer_get_layer(loading_layer));
 }
 
-void window_unloaded(Window* window) {
+void loaded() {
+	GRect from = layer_get_frame(text_layer_get_layer(loading_layer));
+	GRect to = GRect(from.origin.x, from.origin.y - from.size.h, from.size.w, from.size.h);
+	
+	static PropertyAnimation *s_anim_ptr = NULL;
+	
+	s_anim_ptr = property_animation_create_layer_frame(text_layer_get_layer(loading_layer), &from, &to);
+	animation_schedule(property_animation_get_animation(s_anim_ptr));
+}
+
+void window_unloaded() {
+	text_layer_destroy(loading_layer);
 	graph_destroy(graph);
 }
 
-Window* create_main_window(void) {
-  Window* my_window = window_create();
+void create_main_window(void) {
+  root_window = window_create();
 
-	window_set_window_handlers(my_window, (WindowHandlers) {
+	window_set_window_handlers(root_window, (WindowHandlers) {
 		.load = window_loaded,
 		.unload = window_unloaded
 	});
 	
-  window_stack_push(my_window, true);
-	return my_window;
+  window_stack_push(root_window, true);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
+	loaded();
 	APP_LOG(APP_LOG_LEVEL_INFO, "Message received");
 	
  	Tuple *t = dict_read_first(iterator);
-	
-	minutely_forecast_t minutes;
 	
 	bool graphIsDirty = false;
 	
@@ -49,7 +68,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
  				break;
 			case KEY_MINUTELY:
 				memcpy(graph->values, t->value->data, sizeof(graph->values));
-				APP_LOG(APP_LOG_LEVEL_INFO, "graph->values[30] is %d", graph->values[30]);
 				graphIsDirty = true;
 				break;
  			default:
@@ -67,8 +85,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	static char buffer[] = "00:00";
 	
 	strftime(buffer, sizeof(buffer), "%H:%M", start_time);
-	
-	APP_LOG(APP_LOG_LEVEL_INFO, "First time window starts at %s", buffer);
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
@@ -116,8 +132,8 @@ void set_up_app_message() {
 }
 
 int main(void) {
-  Window *window = create_main_window();
+  create_main_window();
 	set_up_app_message();
   app_event_loop();
-  window_destroy(window);
+  window_destroy(root_window);
 }

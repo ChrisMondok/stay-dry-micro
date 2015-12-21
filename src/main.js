@@ -1,4 +1,8 @@
+var maxGraphPrecip = 0.2;
+var numWindows = 8;
+console.log("About to subscribe to ready");
 Pebble.addEventListener('ready', function(e) {
+	console.log("READY");
 	Pebble.addEventListener('appmessage', function(e) {
 		console.log("Got message: ");
 		console.log(JSON.stringify(e.payload));
@@ -11,32 +15,32 @@ Pebble.addEventListener('ready', function(e) {
 	
 
 function fetchAndSendData() {
+	console.log("Getting coordinates...");
 	getLocation(function(location) {
 		console.log("Got coordinates "+location.coords.latitude+", "+location.coords.longitude);
-		//getForecast(location.coords, function(forecast) {
-		getForecast({latitude: 42.3587, longitude: -71.0567}, function(forecast) {
+		Forecast.get(location.coords, function(forecast) {
 			var tolerance = 0.03;
 			var oneMinute = 1000*60;
 			var windows = forecast.findWindows(tolerance, oneMinute);
 			console.log("Got "+windows.length+" windows");
-			
+
 			var swindows = [];
-			for(var i = 0; i < 8; i++)
+			for(var i = 0; i < numWindows; i++)
 				swindows = swindows.concat(serializeTimeWindow(windows[i]));
-			
+
 			var sminutely = forecast.minutes.map(function(m) {
 				return serializePrecipIntensity(m.precipIntensity);
 			}).slice(0, 60);
 			while(sminutely.length < 60)
 				sminutely.push(sminutely[sminutely.length - 1]);
-			
+
 			var message = {
 				KEY_WINDOWS: swindows,
 				KEY_MINUTELY: sminutely
 			};
-			
+
 			console.log("About to send this thing:\n", JSON.stringify(message));
-			
+
 			Pebble.sendAppMessage(message, function(e) {
 				console.log("Sent successfully");
 			}, function(e) {
@@ -72,7 +76,7 @@ function serializeTimeWindow(w) {
 }
 
 function serializePrecipIntensity(inPrHr) {
-	return inPrHr ? Math.min(255, Math.floor(inPrHr / 0.4 * 255)) : 1;
+	return inPrHr ? Math.min(255, Math.floor(inPrHr / maxGraphPrecip * 255)) : 1;
 }
 
 function serializeUint32(number) {
@@ -88,10 +92,10 @@ function getLocation(callback) {
 		maximumAge: 10000,
 		timeout: 10000
 	};
-	
+
 	function errHandler(err) {
 		console.log("Location error: "+err.code+": "+err.message);
 	}
-	
+
 	navigator.geolocation.getCurrentPosition(callback, errHandler, locationOptions);
 }
