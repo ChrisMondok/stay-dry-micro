@@ -1,5 +1,5 @@
 function Forecast(data) {
-	if(!data instanceof Array)
+	if(!(data instanceof Array))
 		throw new TypeError("malformed data");
 	
 	console.log(data.map(function(m) {return m.precipIntensity;}).join(', '));
